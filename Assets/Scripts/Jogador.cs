@@ -1,8 +1,11 @@
-﻿using System;
+﻿using Microsoft.Win32.SafeHandles;
+using System;
 using System.Collections;
+using System.ComponentModel;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Scripting.APIUpdating;
+using UnityEngine.UI;
 
 public class Jogador : MonoBehaviour
 {
@@ -24,13 +27,42 @@ public class Jogador : MonoBehaviour
     public float timeBetweenMoves;
     private float timestamp;
     public String dirS;
+    bool moved;
+    bool sliding;
+    Dictionary<string, object> ifDirections = new Dictionary<string, object>();
     // Update is called once per frame
 
     void Start()
     {
+        ifDirections.Add("", "");
+        ifDirections.Add("spiderPosN", new Vector3(0f, 0.25f, 0.35f));
+        ifDirections.Add("spiderPosE", new Vector3(0.35f, 0.25f, 0f));
+        ifDirections.Add("spiderPosS", new Vector3(0f, 0.25f, -0.35f));
+        ifDirections.Add("spiderPosO", new Vector3(-0.35f, 0.25f, 0f));
+        ifDirections.Add("directionN", new Vector3(0f, 0f, 1f));
+        ifDirections.Add("directionE", new Vector3(1f, 0f, 0f));
+        ifDirections.Add("directionS", new Vector3(0f, 0f, -1f));
+        ifDirections.Add("directionO", new Vector3(-1f, 0f, 0f));
+        ifDirections.Add("rotateTo1N", new int[] { 270, 1, 1 });
+        ifDirections.Add("rotateTo1E", new int[] { 0, 1, -1 });
+        ifDirections.Add("rotateTo1S", new int[] { 90, -1, -1 });
+        ifDirections.Add("rotateTo1O", new int[] { 180, -1, 1 });
+        ifDirections.Add("rotateTo-1N", new int[] { 90, -1, 1 });
+        ifDirections.Add("rotateTo-1E", new int[] { 180, 1, 1 });
+        ifDirections.Add("rotateTo-1S", new int[] { 270, 1, -1 });
+        ifDirections.Add("rotateTo-1O", new int[] { 0, -1, -1 });
+        ifDirections.Add("rotateTo2N", new int[] { 90, 0, 0 });
+        ifDirections.Add("rotateTo2E", new int[] { 180, 0, 0 });
+        ifDirections.Add("rotateTo2S", new int[] { 270, 0, 0 });
+        ifDirections.Add("rotateTo2O", new int[] { 0, 0, 0 });
+        ifDirections.Add("rotateTo-2N", new int[] { 270, 0, 0 });
+        ifDirections.Add("rotateTo-2E", new int[] { 0, 0, 0 });
+        ifDirections.Add("rotateTo-2S", new int[] { 90, 0, 0 });
+        ifDirections.Add("rotateTo-2O", new int[] { 180, 0, 0 });
         timeBetweenMoves = 0.2f;
         Velocidade = 5f;
         doingSpider = false;
+        moved = false;
         stage = Grid.GetComponent<GridBehaviour>().stage;
         transform.position = new Vector3(51, 51, 51);
         tr = transform;
@@ -42,43 +74,42 @@ public class Jogador : MonoBehaviour
 }
     void Update()
     {
-        if (Vector3.Distance(tr.position, pos+spiderPos) <= 0.2f && Time.time >= timestamp)
-        {
-            if (doingSpider) {
-                SpiderMove();
-            } else {
-                pushing = Input.GetButton("Pushing");
-                if (pushing) {
-                    Push();
+        if (Vector3.Distance(tr.position, pos+spiderPos) <= 0.2f) {
+            if (moved) { 
+                GameObject.Find("bl-" + x + "-" + (y-1) + "-" + z)?.GetComponent<GridStats>().Call();
+                CheckSlide();
+            } else if (Time.time >= timestamp) { 
+                if (doingSpider) {
+                    SpiderMove();
                 } else {
-                    Move();
+                    pushing = Input.GetButton("Pushing");
+                    if (pushing) {
+                        Push();
+                    } else {
+                        Move();
+                    }
                 }
             }
+        } else {
+            moved = true;
         }
     }
      
     void FixedUpdate()
     {
+        UpdateDirection();
         if (doingSpider) {
-            GetDirection();
-            if (dirS == "N") {
-                spiderPos = new Vector3(0f, 0.25f, 0.35f);
-            } else if (dirS == "E") {
-                spiderPos = new Vector3(0.35f, 0.25f, 0f);
-            } else if (dirS == "S") {
-                spiderPos = new Vector3(0f, 0.25f, -0.35f);
-            } else {
-                spiderPos = new Vector3(-0.35f, 0.25f, 0f);
-            }
+            spiderPos = (Vector3)ifDirections["spiderPos" + (dirS)];            
         }
         tr.position = Vector3.MoveTowards(tr.position, pos+spiderPos, Time.fixedDeltaTime * Velocidade);
-    }
 
-    private void OnAnimatorMove()
-    {
-        x = (int)pos.x;
-        y = (int)pos.y + 1;
-        z = (int)pos.z;
+        if (sliding == true) {
+            Quaternion target = Quaternion.Euler(-20, Math.Abs(tr.localEulerAngles.y) % 360, 0);
+            transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * 1000);
+        } else {
+            Quaternion target = Quaternion.Euler(0, Math.Abs(tr.localEulerAngles.y) % 360, 0);
+            transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * 1000);
+        }
     }
 
     void Move()
@@ -94,7 +125,6 @@ public class Jogador : MonoBehaviour
             if (eixoX == 0) {
                 eixoZ = (int)Input.GetAxisRaw("Vertical");
             }
-            GetDirection();
             if (Input.GetButton("Looking") || (dirS != "E" && eixoX == 1)  || (dirS != "O" && eixoX == -1)  || (dirS != "N" && eixoZ == 1)  || (dirS != "S" && eixoZ == -1) ){
                 float rotateTo = eixoX == 1 ? 90 : eixoX == -1 ? 270 : eixoZ == 1 ? 0 : 180;
                 Quaternion target = Quaternion.Euler(0, rotateTo, 0);
@@ -131,9 +161,7 @@ public class Jogador : MonoBehaviour
             }
             direction = new Vector3(eixoX, height, eixoZ);
             pos += direction;
-            x = (int)pos.x;
-            y = (int)pos.y;
-            z = (int)pos.z;
+            UpdateCoords();
 
         }
     }
@@ -143,16 +171,7 @@ public class Jogador : MonoBehaviour
         bool eixoXP = Input.GetButtonDown("Horizontal");
         bool eixoZP = Input.GetButtonDown("Vertical");
         /*Grid.GetComponent<GridBehaviour>().stage*/
-        GetDirection();
-        if (dirS == "N") {
-            direction = new Vector3(0f, direction.y, 1f);
-        } else if (dirS == "E") {
-            direction = new Vector3(1f, direction.y, 0f);
-        } else if (dirS == "S") {
-            direction = new Vector3(0f, direction.y, -1f);
-        } else {
-            direction = new Vector3(-1f, direction.y, 0f);
-        }
+        direction = (Vector3)ifDirections["direction" + (dirS)];
         Vector3 bF = new Vector3(direction.x, y, direction.z);
 
         if (stage[x + (int)bF.x, y, z + (int)bF.z]==1 && (eixoXP || eixoZP)) { //verifica se o bloco a frente existe e se apertou alguma direção
@@ -182,31 +201,32 @@ public class Jogador : MonoBehaviour
                 fZ == 0 && Math.Abs(eixoZ) == 1 && stage[x + eixoX, y, z + eixoZ] == 1) {
                 return;
             }
-            bool mexeu = false;
+            Stack myStack = new Stack();
             var pushedBlock = GameObject.Find("bl-" + (x + (int)bF.x + 0*eixoX) + "-" + y + "-" + (z + (int)bF.z+0*eixoZ));
             for (int count = 0; (pushedBlock = GameObject.Find("bl-" + (x + (int)bF.x + count*eixoX) + "-" + y + "-" + (z + (int)bF.z + count*eixoZ))) != null;count++) {
+                myStack.Push(count);
+                //print(count);
                 /*print("bl-" + (x + (int)bF.x + count) + "-" + y + "-" + (z + (int)bF.z + count));*/
-                mexeu = true;
-                pushedBlock.GetComponent<GridStats>().StartCoroutine(pushedBlock.GetComponent<GridStats>().Move(new Vector3(x + fX + count*eixoX, y, z + fZ + count*eixoZ), 0));
             }
-            if (mexeu == false) {
-                return;
+            foreach (int count in myStack) {
+                //print(count);
+                StartCoroutine(GameObject.Find("bl-" + (x + (int)bF.x + count * eixoX) + "-" + y + "-" + (z + (int)bF.z + count * eixoZ)).GetComponent<GridStats>().Move(new Vector3(x + fX + count * eixoX, y, z + fZ + count * eixoZ), 0));
             }
             //se estiver empurrando o bloco, somente empurra o bloco, não vai pra frente ou agarra
-            if (stage[x + eixoX, y + height, z + eixoZ] == 1 ||
-                Math.Abs(fX) == 2 ||
+            if (Math.Abs(fX) == 2 ||
                 Math.Abs(fZ) == 2) {
+                timestamp = Time.time + timeBetweenMoves * 0.5f;
                 return;
             }
+            height = 0;
             if (y > 0 && stage[x + eixoX, y, z + eixoZ] == 0 && stage[x + eixoX, y - 1, z + eixoZ] == 0) {
                 height = -1;
                 Spider();
             }
             pos += new Vector3(eixoX, height, eixoZ);
+            timestamp = Time.time + timeBetweenMoves*1.2f;
             //transform.LookAt(new Vector3(pos.x, y, pos.z));
-            x = (int)pos.x;
-            y = (int)pos.y;
-            z = (int)pos.z;
+            UpdateCoords();
             //print(x+"-"+y+"-"+z);
         }
     }
@@ -234,7 +254,6 @@ public class Jogador : MonoBehaviour
             if (eixoX == 0) {
                 eixoZ = (int)Input.GetAxisRaw("Vertical");
             }
-            GetDirection();
 
             // SE                           Z+1         X+1         Z-1         X-1      
             // se direção for "NORTE"       SOBE        DIREITA     CAI         ESQUERDA 
@@ -251,7 +270,7 @@ public class Jogador : MonoBehaviour
                 (dirS == "S" && stage[x, y, z - 1] == 1 && stage[x, y + 1, z - 1] == 0) ||
                 (dirS == "O" && stage[x - 1, y, z] == 1 && stage[x - 1, y + 1, z] == 0))) {
                 heightSpider = 1;
-                transform.localScale = new Vector3(1f, 0.5f, 1f);
+                transform.localScale = new Vector3(0.9f, 0.5f, 0.9f);
                 spiderPos = new Vector3(0f, 0f, 0f);
                 doingSpider = false;
                 //sai do spider
@@ -260,7 +279,7 @@ public class Jogador : MonoBehaviour
                 for (int j = 0; j < y; j++) {
                     if (stage[x, y - j, z] == 1) {
                         heightSpider = -j + 1;
-                        transform.localScale = new Vector3(1f, 0.5f, 1f);
+                        transform.localScale = new Vector3(0.9f, 0.5f, 0.9f);
                         spiderPos = new Vector3(0f, 0f, 0f);
                         doingSpider = false;
                         break;
@@ -277,61 +296,55 @@ public class Jogador : MonoBehaviour
                     }
                     if (y - j - 1 == 0) {
                         heightSpider = -j;
-                        transform.localScale = new Vector3(1f, 0.5f, 1f);
+                        transform.localScale = new Vector3(0.9f, 0.5f, 0.9f);
                         spiderPos = new Vector3(0f, 0f, 0f);
                         doingSpider = false;
                         break;
                     }
                 }
-                // SE APERTAR PRA DIREITA E NÃO FOR CANTINHO:
-                // O BLOCO A DIREITA DO JOGADOR NÃO DEVE EXISTIR
-                // O BLOCO A DIREITA E ACIMA DO JOGADOR NÃO DEVE EXISTIR
-                // O BLOCO A DIREITA E A FRENTE DO JOGADOR DEVE EXISTIR
-
-                //SE APERTAR PRA DIREITA E FOR CANTINHO
-                // O BLOCO A DIREITA DO JOGADOR NÃO DEVE EXISTIR
-                // O BLOCO A DIREITA E ACIMA DO JOGADOR NÃO DEVE EXISTIR
-                // O BLOCO A DIREITA E A FRENTE DO JOGADOR NÃO DEVE EXISTIR
-                // O BLOCO A FRENTE, A DIREITA E ACIMA DO JOGADOR NÃO DEVE EXISTIR
 
             } else if ((eixoX == 1) &&
                ((dirS == "N" && stage[x + 1, y, z] == 0 && stage[x + 1, y + 1, z] == 0 && stage[x + 1, y, z + 1] == 1) ||
                 (dirS == "E" && stage[x, y, z - 1] == 0 && stage[x, y + 1, z - 1] == 0 && stage[x + 1, y, z - 1] == 1) ||
                 (dirS == "S" && stage[x - 1, y, z] == 0 && stage[x - 1, y + 1, z] == 0 && stage[x - 1, y, z - 1] == 1) ||
                 (dirS == "O" && stage[x, y, z + 1] == 0 && stage[x, y + 1, z + 1] == 0 && stage[x - 1, y, z + 1] == 1))) {
+                //move right, nothing to add
             } else if ((eixoX == 1) && 
                ((dirS == "N" && stage[x + 1, y, z] == 0 && stage[x + 1, y + 1, z] == 0 && stage[x + 1, y, z + 1] == 0 && stage[x + 1, y + 1, z + 1] == 0)  ||
                 (dirS == "E" && stage[x, y, z - 1] == 0 && stage[x, y + 1, z - 1] == 0 && stage[x + 1, y, z - 1] == 0 && stage[x + 1, y + 1, z - 1] == 0)  ||
                 (dirS == "S" && stage[x - 1, y, z] == 0 && stage[x - 1, y + 1, z] == 0 && stage[x - 1, y, z - 1] == 0 && stage[x - 1, y + 1, z - 1] == 0)  ||
                 (dirS == "O" && stage[x, y, z + 1] == 0 && stage[x, y + 1, z + 1] == 0 && stage[x - 1, y, z + 1] == 0 && stage[x - 1, y + 1, z + 1] == 0))) {
                 cornerX = 1;
+                //move external right corner
             } else if ((eixoX == 1) &&
                ((dirS == "N" && stage[x + 1, y, z] == 1) ||
                 (dirS == "E" && stage[x, y, z - 1] == 1) ||
                 (dirS == "S" && stage[x - 1, y, z] == 1) ||
                 (dirS == "O" && stage[x, y, z + 1] == 1))) {
                  cornerX = 2;
+                //move internal right corner
             } else if ((eixoX == -1) &&
                ((dirS == "N" && stage[x - 1, y, z] == 0 && stage[x - 1, y + 1, z] == 0 && stage[x - 1, y, z + 1] == 1)  ||
                 (dirS == "E" && stage[x, y, z + 1] == 0 && stage[x, y + 1, z + 1] == 0 && stage[x + 1, y, z + 1] == 1)  ||
                 (dirS == "S" && stage[x + 1, y, z] == 0 && stage[x + 1, y + 1, z] == 0 && stage[x + 1, y, z - 1] == 1)  ||
                 (dirS == "O" && stage[x, y, z - 1] == 0 && stage[x, y + 1, z - 1] == 0 && stage[x - 1, y, z - 1] == 1))) {
-                //print("canmoveesq" + dirS); 
-                //print((x - 1) + "-" + (y) + "-" + (z + 1));
+                //move left, nothing to add
             } else if ((eixoX == -1) &&
                ((dirS == "N" && stage[x - 1, y, z] == 0 && stage[x - 1, y + 1, z] == 0 && stage[x - 1, y, z + 1] == 0 && stage[x - 1, y + 1, z + 1] == 0)  ||
                 (dirS == "E" && stage[x, y, z + 1] == 0 && stage[x, y + 1, z + 1] == 0 && stage[x + 1, y, z + 1] == 0 && stage[x + 1, y + 1, z + 1] == 0)  ||
                 (dirS == "S" && stage[x + 1, y, z] == 0 && stage[x + 1, y + 1, z] == 0 && stage[x + 1, y, z - 1] == 0 && stage[x + 1, y + 1, z - 1] == 0)  ||
                 (dirS == "O" && stage[x, y, z - 1] == 0 && stage[x, y + 1, z - 1] == 0 && stage[x - 1, y, z - 1] == 0 && stage[x - 1, y + 1, z - 1] == 0))) {
                 cornerX = -1;
+                //move external right corner
             } else if ((eixoX == -1) &&
                ((dirS == "N" && stage[x - 1, y, z] == 1) ||
                 (dirS == "E" && stage[x, y, z + 1] == 1) ||
                 (dirS == "S" && stage[x + 1, y, z] == 1) ||
                 (dirS == "O" && stage[x, y, z - 1] == 1))) {
                 cornerX = -2;
+                //move internal right corner
             } else {
-                print("não mexe, porra");
+                //can't move!
                 return;
             }
 
@@ -347,90 +360,70 @@ public class Jogador : MonoBehaviour
                 eixoX = eixoZ*-1;
                 eixoZ = aux; 
             }
-            if (cornerX == 1) {
-                if (dirS == "N") {
-                    rotateTo = 270;
-                    eixoZ = 1;
-                }
-                else if (dirS == "E") {
-                    rotateTo = 0;
-                    eixoX = 1;
-                }
-                else if (dirS == "S") {
-                    rotateTo = 90;
-                    eixoZ = -1;
-                }
-                else {
-                    rotateTo = 180;
-                    eixoX = -1;
-                }
-            } else if (cornerX == -1) {
-                if (dirS == "N") {
-                    rotateTo = 90;
-                    eixoZ = 1;
-                }
-                else if (dirS == "E") {
-                    rotateTo = 180;
-                    eixoX = 1;
-                }
-                else if (dirS == "S") {
-                    rotateTo = 270;
-                    eixoZ = -1;
-                }
-                else {
-                    rotateTo = 0;
-                    eixoX = -1;
-                }
-            } else if (cornerX == 2) {
-                eixoX = 0;
-                eixoZ = 0;
-                if (dirS == "N") {
-                    rotateTo = 90;
-                }
-                else if (dirS == "E") {
-                    rotateTo = 180;
-                }
-                else if (dirS == "S") {
-                    rotateTo = 270;
-                }
-                else {
-                    rotateTo = 0;
-                }
-            } else if (cornerX == -2) {
-                eixoX = 0;
-                eixoZ = 0;
-                if (dirS == "N") {
-                    rotateTo = 270;
-                }
-                else if (dirS == "E") {
-                    rotateTo = 0;
-                }
-                else if (dirS == "S") {
-                    rotateTo = 90;
-                }
-                else {
-                    rotateTo = 180;
-                }
-            }
+
             if (cornerX != 0) {
+                int[] cornerParams = (int[])ifDirections["rotateTo" + Convert.ToString(cornerX) + (dirS)];
+                rotateTo = cornerParams[0];
+                eixoX = cornerParams[1];
+                eixoZ = cornerParams[2];
                 Quaternion target = Quaternion.Euler(0, rotateTo, 0);
                 transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * 1000);
             }
             direction = new Vector3(eixoX, heightSpider, eixoZ);
             timestamp = Time.time + timeBetweenMoves;
             pos += direction;
-            x = (int)pos.x;
-            y = (int)pos.y;
-            z = (int)pos.z;
-
+            UpdateCoords();
         }
     }
 
-    void GetDirection()
+    void CheckSlide()
     {
-        float rotY = Math.Abs(tr.localEulerAngles.y) % 360;
-        //print(tr.localEulerAngles.y);
-        //print(rotY);
+        if (GameObject.Find("bl-" + x + "-" + (y - 1) + "-" + z)?.GetComponent<GridStats>().tipo == 3 &&
+        doingSpider == false &&
+        height == 0 &&
+        pushing == false) {
+            sliding = true;
+            if (dirS == "N" && stage[x, y, z + 1] == 0) {
+                pos += new Vector3(0f, 0f, 1f);
+            }
+            else if (dirS == "E" && stage[x + 1, y, z] == 0) {
+                pos += new Vector3(1f, 0f, 0f);
+            }
+            else if (dirS == "S" && stage[x, y, z - 1] == 0) {
+                pos += new Vector3(0f, 0f, -1f);
+            }
+            else if (dirS == "O" && stage[x - 1, y, z] == 0) {
+                pos += new Vector3(-1f, 0f, 0f);
+            } else {
+                sliding = false;
+                moved = false;
+            }
+        } else if (sliding) {
+            for (int j = 0; j < y; j++) {
+                if (stage[x, y - j, z] == 1) {
+                    break;
+                }
+                if ((dirS == "N" && stage[x, y - j, z + 1] == 0 && stage[x, y - j - 1, z + 1] == 1 && stage[x, y - j - 1, z] == 0) ||
+                    (dirS == "E" && stage[x + 1, y - j, z] == 0 && stage[x + 1, y - j - 1, z] == 1 && stage[x, y - j - 1, z] == 0) ||
+                    (dirS == "S" && stage[x, y - j, z - 1] == 0 && stage[x, y - j - 1, z - 1] == 1 && stage[x, y - j - 1, z] == 0) ||
+                    (dirS == "O" && stage[x - 1, y - j, z] == 0 && stage[x - 1, y - j - 1, z] == 1 && stage[x, y - j - 1, z] == 0)) {
+                    height = -j - 1;
+                    Spider();
+                    break;
+                }
+                height = -j;
+            }
+            pos += new Vector3(0f, height, 0f);
+            sliding = false;
+        } else {
+            moved = false;
+        }
+        UpdateCoords();
+    }
+
+    void UpdateDirection()
+    {
+        float rotY = Math.Abs(tr.localEulerAngles.y) % 360; 
         dirS = "N";
         if (80 <= rotY && rotY <= 100) {
             dirS = "E";
@@ -441,5 +434,12 @@ public class Jogador : MonoBehaviour
         if (260 <= rotY && rotY <= 280) {
             dirS = "O";
         }
+    }
+
+    void UpdateCoords()
+    {
+        x = (int)pos.x;
+        y = (int)pos.y;
+        z = (int)pos.z;
     }
 }

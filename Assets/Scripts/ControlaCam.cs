@@ -4,19 +4,19 @@ using UnityEngine;
 
 public class ControlaCam : MonoBehaviour
 {
-    public GameObject Player;
+    public GameObject Jogador;
     Vector3 distCompensar;
     // Start is called before the first frame update
     void Start()
     {
-        distCompensar = transform.position - Player.transform.position;
-        transform.position = Player.transform.position + distCompensar;
+        distCompensar = transform.position - Jogador.transform.position;
+        transform.position = Jogador.transform.position + distCompensar;
     }
 
     // Update is called once per frame
     void Update()
     {
-        transform.position = Player.transform.position + distCompensar;
+        transform.position = Jogador.transform.position + distCompensar;
         // float eixoX = Input.GetAxis("Horizontal") * 20;
         // float eixoY = Input.GetAxis("Vertical") * 20;
 
