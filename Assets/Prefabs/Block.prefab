@@ -259,4 +259,6 @@ MonoBehaviour:
   pos: {x: 0, y: 0, z: 0}
   Grid: {fileID: 0}
   height: 0
-  tipo: 0
+  tipo: 1
+  isPlayerPulling: 0
+  slide: 0

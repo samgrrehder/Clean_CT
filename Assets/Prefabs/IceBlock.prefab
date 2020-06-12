@@ -97,7 +97,7 @@ MonoBehaviour:
   z: 0
   velocidade: 1
   pos: {x: 0, y: 0, z: 0}
-  Grid: {fileID: 0}
+  Grid: {fileID: 5392471397985542046, guid: dcadb99a49a752c49b2f04aa968e58b9, type: 3}
   height: 0
   tipo: 3
   isPlayerPulling: 0

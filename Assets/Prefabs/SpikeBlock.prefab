@@ -283,7 +283,7 @@ MonoBehaviour:
   z: 0
   velocidade: 1
   pos: {x: 0, y: 0, z: 0}
-  Grid: {fileID: 0}
+  Grid: {fileID: 5392471397985542046, guid: dcadb99a49a752c49b2f04aa968e58b9, type: 3}
   height: 0
   tipo: 2
   isPlayerPulling: 0
@@ -2509,6 +2509,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Mesh
       value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 19235249074488299, guid: fdf18767ef1a25446ba5cb2c607cf3be,
+        type: 3}
+      propertyPath: m_Enabled
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2826882562949512520, guid: fdf18767ef1a25446ba5cb2c607cf3be,
         type: 3}
