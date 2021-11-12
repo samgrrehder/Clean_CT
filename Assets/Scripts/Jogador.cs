@@ -138,22 +138,16 @@ public class Jogador : MonoBehaviour
             }
             else if (stage[x + eixoX, y, z + eixoZ] == 0) {
                 for (int j = 0; j < y; j++) {
-                    //print(j);
                     if (stage[x + eixoX, y - j, z + eixoZ] == 1) {
                         break;
                     }
                     height = -j;                   
                 }
-                //print("height " + height);
-            } else {
-                /*print("flw");*/
             }
             if (stage[x + eixoX, y + height, z + eixoZ] == 1 || (stage[x, y + height, z] == 1 && height == 1)) {
-                /*print("1111");*/
                 return;
             }
-            //tr.LookAt(new Vector3(pos.x, y, pos.z));    
-            if (height < -1) { //se for -1, só cai, 0 só vai, 1 sobe
+            if (height < -1) { 
                 print("become spider");
                 height = -1;
                 Spider();
@@ -166,15 +160,14 @@ public class Jogador : MonoBehaviour
         }
     }
 
-    void Push()
+    void Push() //or Pull
     {
         bool eixoXP = Input.GetButtonDown("Horizontal");
         bool eixoZP = Input.GetButtonDown("Vertical");
-        /*Grid.GetComponent<GridBehaviour>().stage*/
         direction = (Vector3)ifDirections["direction" + (dirS)];
         Vector3 bF = new Vector3(direction.x, y, direction.z);
 
-        if (stage[x + (int)bF.x, y, z + (int)bF.z]==1 && (eixoXP || eixoZP)) { //verifica se o bloco a frente existe e se apertou alguma direção
+        if (stage[x + (int)bF.x, y, z + (int)bF.z]==1 && (eixoXP || eixoZP)) { //checks if there's a block ahead and if there's a direction pressed
             int eixoX = (int)Input.GetAxisRaw("Horizontal");
             int eixoZ = 0;
             if (eixoX == 0) {
@@ -184,17 +177,18 @@ public class Jogador : MonoBehaviour
             if (eixoX == eixoZ || (Math.Abs((int)bF.x * eixoZ) == 1 || Math.Abs((int)bF.z * eixoX) == 1)) {
                 return;
             }
-            //com a direção apertada em mãos, verificamos se existe algum bloco na futura posição do bloco
-            //se apertar para frente, a posição deve ser x + 2, se apertar para trás, deve ser x
+            //with the direction pressed, we check if there's a block on the position the pushed block will be
+            //if it pushes forward, it's +2 on that axis, else, it's +0 
 
-            //                                                                  jogador   bloco    futuro bloco futuro jogador                                                                            
-            //se estiver olhando para a direita e quiser empurrar para a direita,  PJ é x, PB é x+1, PFB é x + 2
-            //se estiver olhando para a direita e quiser empurrar para a esquerda, PJ é x, PB é x+1, PFB é x,    PJF é x-1 (eixoX vai ser -1)
+            // positions                        player pos, block pos, future bp, future pp
+            //looking right and pushing right,  PP x      , BP x+1   , FBP x+2  , FPP x 
+            //looking right and pulling left,   PP x      , BP x+1   , FBP x    , FPP x-1
+            
+            //looking left and pulling right,   PP x      , BP x-1   , FBP x    , FPP x+1 
+            //looking left and pushing left,    PP x      , BP x-1   , FBP x-2  , FPP x
 
-            //se estiver olhando para a esquerda e quiser empurrar para a direita, PJ é x, PB é x-1, PFB é x,    PJF é x+1 (eixoX vai ser +1)
-            //se estiver olhando para a esquerda e quiser empurrar para a esquerda,PJ é x, PB é x-1, PFB é x-2
-            //eixo X é 1 se tiver apertado pra frente, -1 se tiver apertado pra trás
-            //bf.x é 1 se tiver olhando pra frente, -1 se tiver olhando pra trás
+            //eixoX is 1 if pressing forward, -1 if pressing backward
+            //bF.x is 1 if looking forward, -1 if looking backward
             int fX = eixoX * (int)bF.x < 0 ? 0 : eixoX * Math.Abs((int)bF.x) * 2;
             int fZ = eixoZ * (int)bF.z < 0 ? 0 : eixoZ * Math.Abs((int)bF.z) * 2;
             if (fX == 0 && Math.Abs(eixoX) == 1 && stage[x + eixoX, y, z + eixoZ] == 1 ||
@@ -203,22 +197,22 @@ public class Jogador : MonoBehaviour
             }
             Stack myStack = new Stack();
             var pushedBlock = GameObject.Find("bl-" + (x + (int)bF.x + 0*eixoX) + "-" + y + "-" + (z + (int)bF.z+0*eixoZ));
+            //find all the blocks that will be pushed
             for (int count = 0; (pushedBlock = GameObject.Find("bl-" + (x + (int)bF.x + count*eixoX) + "-" + y + "-" + (z + (int)bF.z + count*eixoZ))) != null;count++) {
                 myStack.Push(count);
-                //print(count);
-                /*print("bl-" + (x + (int)bF.x + count) + "-" + y + "-" + (z + (int)bF.z + count));*/
             }
             foreach (int count in myStack) {
-                //print(count);
+                //send move coroutine to the found blocks
                 StartCoroutine(GameObject.Find("bl-" + (x + (int)bF.x + count * eixoX) + "-" + y + "-" + (z + (int)bF.z + count * eixoZ)).GetComponent<GridStats>().Move(new Vector3(x + fX + count * eixoX, y, z + fZ + count * eixoZ), 0));
             }
-            //se estiver empurrando o bloco, somente empurra o bloco, não vai pra frente ou agarra
+            //if pushing block, only push it and does not travel with it
             if (Math.Abs(fX) == 2 ||
                 Math.Abs(fZ) == 2) {
                 timestamp = Time.time + timeBetweenMoves * 0.5f;
                 return;
             }
             height = 0;
+            //if player falls after pulling block
             if (y > 0 && stage[x + eixoX, y, z + eixoZ] == 0 && stage[x + eixoX, y - 1, z + eixoZ] == 0) {
                 height = -1;
                 Spider();
@@ -234,8 +228,7 @@ public class Jogador : MonoBehaviour
     void Spider()
     {
         doingSpider = true;        
-        transform.localScale = new Vector3(0.85f, 0.25f, 0.25f);
-        
+        transform.localScale = new Vector3(0.85f, 0.25f, 0.25f);        
     }
 
     void SpiderMove()
@@ -255,15 +248,13 @@ public class Jogador : MonoBehaviour
                 eixoZ = (int)Input.GetAxisRaw("Vertical");
             }
 
-            // SE                           Z+1         X+1         Z-1         X-1      
-            // se direção for "NORTE"       SOBE        DIREITA     CAI         ESQUERDA 
-            // se direção for "SUL"         CAI         ESQUERDA    SOBE        DIREITA
-            // se direção for "LESTE"       ESQUERDA    SOBE        DIREITA     CAI
-            // se direção for "OESTE"       DIREITA     CAI         ESQUERDA    SOBE
+            // if                        Z+1         X+1         Z-1         X-1
+            // direction is "north"      GO UP       MOVE RIGHT  FALL DOWN   MOVE LEFT
+            // direction is "south"      FALL DOWN   MOVE LEFT   GO UP       MOVE RIGHT
+            // direction is "east"       MOVE LEFT   GO UP       MOVE RIGHT  FALL DOWN
+            // direction is "west"       MOVE RIGHT  FALL DOWN   MOVE LEFT   GO UP
 
-            //se apertou para cima, tem bloco na direção a frente do jogador e não tem bloco em cima, tem que subir
-            //print(dirS + ":" + (x+1) + "-" + (y) + "-" + (z));
-            //print(dirS + ":" + (x+1) + "-" + (y+1) + "-" + (z));
+            //if pressed "up", and there's nothing impeding it, go up
             if ((eixoZ == 1) &&
                ((dirS == "N" && stage[x, y, z + 1] == 1 && stage[x, y + 1, z + 1] == 0) ||
                 (dirS == "E" && stage[x + 1, y, z] == 1 && stage[x + 1, y + 1, z] == 0) ||
@@ -273,7 +264,7 @@ public class Jogador : MonoBehaviour
                 transform.localScale = new Vector3(0.9f, 0.5f, 0.9f);
                 spiderPos = new Vector3(0f, 0f, 0f);
                 doingSpider = false;
-                //sai do spider
+                //stops grabbing ledge
             } else if (eixoZ == -1) {
                 eixoZ = 0;
                 for (int j = 0; j < y; j++) {
